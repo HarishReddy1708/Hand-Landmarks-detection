@@ -12,14 +12,6 @@ let runningMode = "IMAGE";
 let webcamRunning = false;
 let enableWebcamButton;
 
-// Ring image for try-on (ensure path is correct)
-let ringImage = new Image();
-ringImage.src = 'assets/ring4.png'; // Replace with your ring image URL
-
-ringImage.onload = function () {
-  console.log('Ring image loaded');
-};
-
 // Create HandLandmarker instance
 const createHandLandmarker = async () => {
   console.log("Loading HandLandmarker...");
@@ -91,27 +83,16 @@ async function predictWebcam() {
 
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  
   if (results.landmarks) {
     for (const landmarks of results.landmarks) {
-      // Draw hand landmarks and connections
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
         color: "#00FF00",
         lineWidth: 5
       });
       drawLandmarks(canvasCtx, landmarks, { color: "#FF0000", lineWidth: 2 });
 
-      // Get coordinates of the ring finger landmarks (Landmark 4 and Landmark 8)
-      const ringBase = landmarks[4];  // Landmark 4 (Base of the Ring Finger)
-      const ringTip = landmarks[8];   // Landmark 8 (Tip of the Ring Finger)
-
-      // Calculate the position for the ring (just an example, you can refine it)
-      const ringCenterX = (ringBase.x + ringTip.x) / 2;
-      const ringCenterY = (ringBase.y + ringTip.y) / 2;
-
-      // Draw the ring image at the center of the ring finger (adjust size as necessary)
-      const ringSize = 50;  // Adjust size as needed
-      canvasCtx.drawImage(ringImage, ringCenterX * canvasElement.width - ringSize / 2, ringCenterY * canvasElement.height - ringSize / 2, ringSize, ringSize);
+      // Ring try-on for the ring finger
+      addRingToRingFinger(landmarks, canvasCtx, video.videoWidth, video.videoHeight);
     }
   }
   canvasCtx.restore();
@@ -120,3 +101,37 @@ async function predictWebcam() {
     window.requestAnimationFrame(predictWebcam);
   }
 }
+
+// Ring Image Overlay Logic
+function addRingToRingFinger(landmarks, context, imgWidth, imgHeight) {
+  const ringFingerBase = landmarks[12]; // Ring finger base
+  const ringFingerMiddle = landmarks[13]; // Ring finger middle
+  const ringFingerTip = landmarks[14]; // Ring finger tip
+
+  const ringFingerLength = Math.sqrt(
+    Math.pow(ringFingerTip.x - ringFingerBase.x, 2) +
+    Math.pow(ringFingerTip.y - ringFingerBase.y, 2)
+  );
+
+  const ringImage = new Image();
+  ringImage.src = 'assets/ring2.png'; // Path to your ring image
+
+  ringImage.onload = () => {
+    const scale = ringFingerLength * imgWidth / 150; // Scale based on finger length
+
+    // Position of the ring based on the middle of the finger
+    const ringX = (ringFingerBase.x + ringFingerMiddle.x + ringFingerTip.x) / 3 * imgWidth;
+    const ringY = (ringFingerBase.y + ringFingerMiddle.y + ringFingerTip.y) / 3 * imgHeight;
+
+    // Log positions and scaling
+    console.log(`Ring X: ${ringX}, Ring Y: ${ringY}, Scale: ${scale}`);
+
+    // Ensure that the ring stays within the canvas
+    const minScale = 20;
+    const adjustedScale = Math.max(minScale, scale); // Apply minimum size if needed
+
+    // Draw the ring with calculated position and size
+    context.drawImage(ringImage, ringX - adjustedScale / 2, ringY - adjustedScale / 2, adjustedScale, adjustedScale);
+  };
+}
+
