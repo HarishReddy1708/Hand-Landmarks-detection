@@ -14,7 +14,7 @@ let enableWebcamButton;
 
 // Ring image for try-on (ensure path is correct)
 let ringImage = new Image();
-ringImage.src = 'assets/ring4.png'; // Replace with your ring image URL
+ringImage.src = 'assets/ring12.png'; // Replace with your ring image URL
 
 ringImage.onload = function () {
   console.log('Ring image loaded');
@@ -91,7 +91,7 @@ async function predictWebcam() {
 
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  
+
   if (results.landmarks) {
     for (const landmarks of results.landmarks) {
       // Draw hand landmarks and connections
@@ -101,17 +101,58 @@ async function predictWebcam() {
       });
       drawLandmarks(canvasCtx, landmarks, { color: "#FF0000", lineWidth: 2 });
 
-      // Get coordinates of the ring finger landmarks (Landmark 4 and Landmark 8)
-      const ringBase = landmarks[4];  // Landmark 4 (Base of the Ring Finger)
-      const ringTip = landmarks[8];   // Landmark 8 (Tip of the Ring Finger)
+      // Get coordinates of landmarks 13 and 14 (Base and middle part of the Ring Finger)
+      const ringBase = landmarks[13];  // Landmark 13 (Base of the Ring Finger)
+      const ringMiddle = landmarks[14]; // Landmark 14 (Middle of the Ring Finger)
 
-      // Calculate the position for the ring (just an example, you can refine it)
-      const ringCenterX = (ringBase.x + ringTip.x) / 2;
-      const ringCenterY = (ringBase.y + ringTip.y) / 2;
+      // Calculate the midpoint between these two landmarks
+      const ringCenterX = (ringBase.x + ringMiddle.x) / 2.1;
+      const ringCenterY = (ringBase.y + ringMiddle.y) / 2.1;
 
-      // Draw the ring image at the center of the ring finger (adjust size as necessary)
-      const ringSize = 50;  // Adjust size as needed
-      canvasCtx.drawImage(ringImage, ringCenterX * canvasElement.width - ringSize / 2, ringCenterY * canvasElement.height - ringSize / 2, ringSize, ringSize);
+      // Calculate the distance between the two landmarks (for scaling the ring)
+      const distance = Math.sqrt(
+        Math.pow(ringMiddle.x - ringBase.x, 2) + Math.pow(ringMiddle.y - ringBase.y, 2)
+      );
+
+      // Scale the ring size based on the distance between the two landmarks
+      //const ringSize = Math.max(distance * canvasElement.width, 40);
+      const ringSize = Math.min(distance * canvasElement.width, 72)  // Ensuring minimum size of 40px
+
+      // Convert the normalized coordinates to canvas coordinates
+      const ringCenterCanvasX = ringCenterX * canvasElement.width;
+      const ringCenterCanvasY = ringCenterY * canvasElement.height;
+
+      const angleOffset = Math.PI / 1.6;
+
+      // Calculate the rotation angle of the finger (based on the line from landmark 13 to 14)
+      const dx = ringMiddle.x - ringBase.x;
+      const dy = ringMiddle.y - ringBase.y;
+      const angle = Math.atan2(dy, dx) + angleOffset;
+
+      // Draw the ring image at the calculated position with rotation
+      canvasCtx.save();
+      canvasCtx.translate(ringCenterCanvasX, ringCenterCanvasY);
+
+      // Rotate the canvas based on the angle of the finger
+      canvasCtx.rotate(angle);
+
+      // Add a shadow effect to the ring for depth
+      canvasCtx.shadowColor = "rgba(0, 0, 0, 0.5)";
+      canvasCtx.shadowBlur = 5;
+      canvasCtx.shadowOffsetX = 3;
+      canvasCtx.shadowOffsetY = 3;
+
+      // Clip the portion of the ring to make it look like the backside is cut
+      /* canvasCtx.beginPath();
+      canvasCtx.arc(0, 0, ringSize / 2, 0, Math.PI, true); // Create a semi-circle path
+      canvasCtx.closePath();
+      canvasCtx.clip(); // Clip the image within the semi-circle (cutting off the backside)
+ */
+      // Draw the ring image centered at the finger
+      canvasCtx.drawImage(ringImage, -ringSize / 2, -ringSize / 2, ringSize, ringSize);
+
+      // Restore canvas state
+      canvasCtx.restore();
     }
   }
   canvasCtx.restore();
